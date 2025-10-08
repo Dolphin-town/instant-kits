@@ -5,12 +5,14 @@ from flask import Flask, request, send_file, render_template
 NOW_KEY         = os.getenv("NOWPAYMENTS_API_KEY")
 WEBHOOK_SECRET  = os.getenv("NOWPAYMENTS_IPN_SECRET")
 KIT_PRICE       = 250
-USDT_ADDRESS    = os.getenv("USDT_TRC20")          # your TRC20 address
-KIT_ASSET_URL   = os.getenv("KIT_ASSET_URL")       # GitHub release zip
+USDT_ADDRESS    = os.getenv("USDT_TRC20")          
+BOT_TOKEN       = os.getenv("TELEGRAM_BOT_TOKEN")  
+TG_ADMIN_CHAT   = os.getenv("TG_ADMIN_CHAT")       
 # ----------------------------
 
 app = Flask(__name__)
 
+# ---------- HELPERS ----------
 def create_invoice(usd_value):
     headers = {"x-api-key": NOW_KEY, "Content-Type": "application/json"}
     body = {
@@ -25,6 +27,13 @@ def create_invoice(usd_value):
     r = requests.post("https://api.nowpayments.io/v1/invoice", json=body, headers=headers)
     return r.json().get("invoice_url"), r.json().get("id")
 
+def send_telegram(dl_link):
+    msg = f"🎉 Payment confirmed!\nDownload your kit: {dl_link}\nLink expires in 60 min."
+    url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
+    payload = {"chat_id": TG_ADMIN_CHAT, "text": msg}
+    requests.post(url, json=payload, timeout=5)
+# ------------------------------
+
 @app.route("/create-order", methods=["POST"])
 def order():
     url, inv_id = create_invoice(KIT_PRICE)
@@ -38,7 +47,7 @@ def hook():
     if data.get("payment_status") == "finished":
         token = jwt.encode({"id": data["invoice_id"], "exp": int(time.time()) + 3600},
                            WEBHOOK_SECRET, algorithm="HS256")
-        # Telegram DM will be added in Chunk 3
+        send_telegram(f"https://launchakit.onrender.com/dl/{token}")
     return "ok", 200
 
 @app.route("/dl/<token>")
@@ -47,7 +56,6 @@ def download(token):
         jwt.decode(token, WEBHOOK_SECRET, algorithms=["HS256"])
     except Exception:
         return "Expired or invalid", 404
-    # stream GitHub release zip → buyer
     return send_file("kits/launch-kit-01.zip", as_attachment=True)
 
 @app.route("/success")
