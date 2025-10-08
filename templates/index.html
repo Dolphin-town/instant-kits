@@ -1,0 +1,21 @@
+<!doctype html>
+<html>
+<head>
+  <title>Instant Launch Kit – 250 USDT</title>
+  <meta charset="utf-8">
+  <style>body{font-family:Arial;max-width:600px;margin:auto;padding:2rem}button{background:#ff6600;color:#fff;padding:1rem;border:0;cursor:pointer;font-size:1.2rem}</style>
+</head>
+<body>
+  <h1>Launch your crypto feature in 1 hour – plug-and-play copy, UI & campaign assets</h1>
+  <p>Save 5+ dev hours. Pay only USDT. Instant download after 1 confirmation.</p>
+  <button id="buy">Buy Kit – 250 USDT</button>
+  <p><small>Not happy? DM @YourBot for 100% refund within 24 h.</small></p>
+  <script>
+    document.getElementById("buy").onclick = async ()=>{
+      const r = await fetch("https://your-render/create-order",{method:"POST"});
+      const j = await r.json();
+      location.href = j.invoice_url;
+    }
+  </script>
+</body>
+</html>
