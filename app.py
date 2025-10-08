@@ -1,10 +1,13 @@
 import os, time, jwt, requests
-from flask import Flask, request, send_file
+from flask import Flask, request, send_file, render_template
 
-NOW_KEY   = os.getenv("NOWPAYMENTS_API_KEY")
-WEBHOOK_SECRET = os.getenv("NOWPAYMENTS_IPN_SECRET")
-KIT_PRICE = 250
-USDT_ADDRESS = os.getenv("USDT_TRC20")  # your wallet
+# ---------- CONFIG ----------
+NOW_KEY         = os.getenv("NOWPAYMENTS_API_KEY")
+WEBHOOK_SECRET  = os.getenv("NOWPAYMENTS_IPN_SECRET")
+KIT_PRICE       = 250
+USDT_ADDRESS    = os.getenv("USDT_TRC20")          # your TRC20 address
+KIT_ASSET_URL   = os.getenv("KIT_ASSET_URL")       # GitHub release zip
+# ----------------------------
 
 app = Flask(__name__)
 
@@ -14,10 +17,10 @@ def create_invoice(usd_value):
         "price_amount": usd_value,
         "price_currency": "usd",
         "pay_currency": "usdttrc20",
-        "order_id": str(int(time.time()*1000)),
+        "order_id": str(int(time.time() * 1000)),
         "order_description": "Launch Conversion Kit #1",
-        "ipn_callback_url": f"https://launchakit.onrender.com/webhook",
-        "success_url": f"https://launchakit.onrender.com/success"
+        "ipn_callback_url": "https://launchakit.onrender.com/webhook",
+        "success_url": "https://launchakit.onrender.com/success"
     }
     r = requests.post("https://api.nowpayments.io/v1/invoice", json=body, headers=headers)
     return r.json().get("invoice_url"), r.json().get("id")
@@ -33,17 +36,18 @@ def hook():
         return "fail", 400
     data = request.get_json()
     if data.get("payment_status") == "finished":
-        token = jwt.encode({"id": data["invoice_id"], "exp": int(time.time())+3600},
+        token = jwt.encode({"id": data["invoice_id"], "exp": int(time.time()) + 3600},
                            WEBHOOK_SECRET, algorithm="HS256")
-        # TODO: Telegram DM will be added in Chunk 3
+        # Telegram DM will be added in Chunk 3
     return "ok", 200
 
 @app.route("/dl/<token>")
 def download(token):
     try:
         jwt.decode(token, WEBHOOK_SECRET, algorithms=["HS256"])
-    except:
+    except Exception:
         return "Expired or invalid", 404
+    # stream GitHub release zip → buyer
     return send_file("kits/launch-kit-01.zip", as_attachment=True)
 
 @app.route("/success")
@@ -52,4 +56,4 @@ def success():
 
 @app.route("/")
 def home():
-    return "Hello from launchakit – server ready for kits!"
+    return render_template("index.html")
